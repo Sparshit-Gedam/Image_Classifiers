@@ -74,21 +74,50 @@ def classify_image():
     try:
         # Extract image data from request
         image_data = request.form.get("image_data")
+        logging.debug(f"Received image_data: {image_data}")
         if not image_data:
             logging.error("No image data provided.")
-            return jsonify({"error": "No image data provided"}), 400
+            return jsonify([{
+              'class': None,
+              'class_probability': [],
+              'class_dictionary': {},
+              'error': 'No image data provided'
+            }])
 
         # Decode base64 image data
         if image_data.startswith("data:image"):
-            image_data = image_data.split(",")[1]
+            image_data = image_data.split(',')[1]
+
         image = Image.open(io.BytesIO(base64.b64decode(image_data)))
+        logging.debug("Image successfully decoded.")
 
         # Classify the image using util functions
-        result = util.classify_image(image_data=image_data, file_path=None)
-        logging.info(f"Classification result: {result}")
+        classification_result = util.classify_image(image)
+
+        # Expected structure from `util.classify_image`:
+        # classification_result = {
+        #     "class": "lebron_james",
+        #     "class_probability": [0.9, 0.05, 0.03, 0.02],
+        #     "class_dictionary": {
+        #         "cropped": 0,
+        #         "lebron_james": 1,
+        #         "michael_jordan": 2,
+        #         "shaq": 3,
+        #         "steph_curry": 4
+        #     }
+        # }
+
+        # Ensure proper response format
+        if not classification_result:
+            return jsonify({"error": "No valid prediction found"}), 400
+
+        # Wrap in a list as expected by the frontend
+        response_data = [classification_result]
+
+        logging.info(f"Classification result: {response_data}")
 
         # Return the result
-        response = jsonify(result)
+        response = jsonify(response_data)
         response.headers.add("Access-Control-Allow-Origin", "*")
         return response
 
